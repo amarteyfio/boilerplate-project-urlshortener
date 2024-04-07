@@ -3,6 +3,35 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 let bodyParser = require('body-parser');
+const mongoose = require('mongoose');
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+const urlSchema = new mongoose.Schema({
+  url: String,
+  shorturl: Number
+});
+
+let  Surl
+
+Surl = mongoose.model('Surl', Schema);
+
+//add a url
+const createUrl = (url,done) => {
+  const shorturl = Math.floor(Math.random() * 10000);
+  const newUrl = new Surl({url,shorturl});
+  newUrl.save((err,data) => {
+    if(err) return done(err);
+    done(null,data);
+  });
+}
+
+//find a url by number
+const findUrlByNumber = (shorturl,done) => {
+  Surl.findOne({shorturl},(err,data) => {
+    if(err) return done(err);
+    done(null,data);
+  });
+}
 
 // Basic Configuration
 const port = process.env.PORT || 3000;
@@ -22,10 +51,8 @@ app.get('/api/hello', function(req, res) {
   res.json({ greeting: 'hello API' });
 });
 
-//urls
-let urls = [
 
-];
+
 
 app.post('/api/shorturl', (req, res) => {
   const url = req.body.url;
@@ -34,20 +61,27 @@ app.post('/api/shorturl', (req, res) => {
     res.json({ error: 'invalid URL' });
     return;
   }
-  const shorturl = Math.floor(Math.random() * 10000);
-  urls.push({ url, shorturl });
-  res.json({ original_url: url, short_url: shorturl });
+  createUrl(url, (err, data) => {
+    if (err) {
+      res.json({ error: 'database error' });
+      return;
+    }
+    res.json({ original_url: url, short_url: data.shorturl });
+  });
 })
 
 
+
 app.get('/api/shorturl/:shorturl', (req, res) => {
-  const shorturl = parseInt(req.params.shorturl);
-  const url = urls.find((url) => url.shorturl === shorturl);
-  if (!url) {
-    res.json({ error: 'No short URL found for the given input' });
-    return;
-  }
-  res.redirect(url.url);
+  const shorturl = req.params.shorturl;
+  findUrlByNumber(shorturl, (err, data) => {
+    if (err) {
+      res.json({ error: 'database error' });
+      return;
+    }
+    res.redirect(data.url);
+  });
+  
 });
 
 
